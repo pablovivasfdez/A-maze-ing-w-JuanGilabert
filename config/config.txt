@@ -1,0 +1,10 @@
+# A-Maze-ing default configuration.
+# SEED puede establecerse como valor por defecto en la funcion que genera la seed y recibe como parametro la seed a generar en el laberinto.
+
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=output/maze.txt
+PERFECT=False
+SEED=42
