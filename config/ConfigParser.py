@@ -13,7 +13,8 @@ IV.3 Configuration file format
 
     You may add additional keys (e.g., seed, algorithm, display mode) if useful.
     A default configuration file must be available in your Git repository
-    
+
+
 1.- Se comprueba que el fichero de configuracion exista(file not found).
 2.- Se comprueba que el fichero de configuracion tenga la sintaxis correcta(bad syntax).
 3.- Una vez se ha comprbado que la sintaxis es correcta, verificamos si los parametros indicados por KEY=VALUE son posibles o no(impossible maze parameters)
@@ -25,7 +26,7 @@ A default configuration file must be available in your Git repository.
 from pathlib import Path
 
 
-class ConfigParser:
+class MazeConfigParser:
     def __init__(self, config_file: str | Path):
         self.config_file: str | Path = config_file
         #self.config = self.parse_config_file()
@@ -33,9 +34,8 @@ class ConfigParser:
             "WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"
         ]
 
-
     # Funcion que comprueba si el fichero de configuracion tiene la sintaxis correcta(bad syntax).
-    def check_file_config_syntax(self) -> bool:
+    def check_file_config_syntax(self) -> tuple[bool, str]:
         """
         Comprobamos que la sintaxis del fichero se exactamente KEY=VALUE
         donde solo haya un par de KEY=VALUE por linea,
@@ -48,20 +48,20 @@ class ConfigParser:
         """
         with open(self.config_file, "r") as file:
             for line in file:
-                if line.startswith("#"):
+                if not line or line.startswith("#"):
                     continue
-                if "=" not in line:
-                    return False
+                if line.count("=") != 1:
+                    return False, "Must have one '=' per line"
                 key, value = line.split("=")
-                if not key.isupper() or key not in self.available_config_keys:
-                    return False
-                if not value:
-                    return False
-        return True
+                if not key or not key.isupper():
+                    return False, "Key must be in capital letters"
+                if not value or not value.strip():# EXIT=\n
+                    return False, "There must exist a value parameter"
+        return True, "File syntax is OK"
 
 
     # Funcion que comprueba si los parametros indicados por KEY=VALUE son posibles o no(impossible maze parameters)
-    def check_maze_parameters(self) -> bool:
+    def check_maze_parameters(self) -> tuple[bool, str]:
         """
         Comprobamos que los parametros tengan realmente sentido,
         ya que el parametro ABCD=1234 es valido en -> check_file_config_syntax
@@ -73,23 +73,18 @@ class ConfigParser:
         """
         with open(self.config_file, "r") as file:
             for line in file:
-                key, value = line.split("=")
+                if not line or line.startswith("#"):
+                    continue
+                key, _ = line.split("=")
+                #key = key.strip()
                 if key not in self.available_config_keys:
-                    return False
-        return True
+                    return False, f"Key: {key} is not valid"
+        return True, "Parameters are OK"
 
 
-    # Funcion que comprueba si la configuracion es valida o no(invalid configuration). ESTO PODRIA SER INECESARIO AL TENER PYDANTIC.
-    def check_maze_configuration(self) -> bool:pass
-
-
-# Funcion que comprueba si el fichero de configuracion existe(file not found).
-def check_config_maze_file(config_file: Path) -> bool:
-    if not check_maze_configuration(config_file):
-        print(f"Invalid configuration in file {config_file}.")
-        return False
-    return True
-
+    # Funcion que comprueba si la configuracion es valida o no(invalid configuration)
+    def check_maze_configuration(self) -> bool:
+        
 
 
 """
