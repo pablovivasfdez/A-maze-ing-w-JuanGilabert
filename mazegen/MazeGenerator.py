@@ -111,3 +111,56 @@ class MazeGenerator:
     def solve(self, entry: ..., exit: ...) -> str:
         """Return a valid shortest path."""
         ...#TODO: Se usara MazeSolver
+
+
+
+import random
+from collections import deque
+
+BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
+OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
+DELTA = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
+
+
+def ft_can_move(position: tuple[int, int]) -> bool:
+    for dir in DELTA:
+        dx, dy = DELTA[dir]
+        
+
+
+def ft_hunt(position: tuple[int, int], width: int, height: int) -> tuple[int, int]:
+    x, y = position
+    while y in range(height):
+        for nx in range(width):
+            if (ft_can_move((nx, y)))
+                return ((nx, y))
+        y = y + 1
+
+
+def hunt_and_kill(width: int, height: int, start: tuple[int, int], seed: int | None) -> list[list[int]]:
+    rng = random.Random(seed)
+    grid = [[15] * width for _ in range(height)]
+    queue = deque([start])
+    seen = {start}
+    x, y = queue.popleft()
+    bool posibilidad = True
+    while queue:
+        if (posibilidad):
+            x, y = queue.popleft()
+        else:
+            x, y = ft_hunt((x, y), width, height)
+        posibilidad = False
+        DELTA = rng.shuffle(DELTA)
+        for dir in DELTA:
+            dx, dy = DELTA[dir]
+            nx, ny = x + dx, y + dy
+            if ((nx, ny) not in seen):
+                grid[y][x] &= ~BIT[dir]
+                grid[ny][nx] &= ~BIT[OPPOSITE[dir]]
+                seen.add((nx, ny))
+                queue.append((nx, ny))
+                posibilidad = True
+                break
+            else:
+                continue
+ 
