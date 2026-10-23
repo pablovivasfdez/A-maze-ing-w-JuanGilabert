@@ -113,54 +113,109 @@ class MazeGenerator:
         ...#TODO: Se usara MazeSolver
 
 
-
 import random
-from collections import deque
 
 BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 DELTA = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
 
 
-def ft_can_move(position: tuple[int, int]) -> bool:
-    for dir in DELTA:
-        dx, dy = DELTA[dir]
-        
+def ft_hunt(
+        seen: set[tuple[int, int]], width: int, height: int,
+        grid: list[list[int]], rng: random) -> tuple[int, int] | None:
+    for y in range(height):
+        for x in range(width):
+            if (x, y) in seen:
+                continue
+            dirs = neighbours((x, y), seen, width, height, True)
+            if (dirs):
+                carve((x, y), rng.choice(dirs), grid)
+                return (x, y)
+    return None
 
 
-def ft_hunt(position: tuple[int, int], width: int, height: int) -> tuple[int, int]:
+def inbounds(x: int, y: int, width: int, height: int) -> bool:
+    return(0 <= x < width and 0 <= y < height)
+
+
+def carve(position: tuple[int, int], d: str, grid: list[list[int]]) -> None:
     x, y = position
-    while y in range(height):
-        for nx in range(width):
-            if (ft_can_move((nx, y)))
-                return ((nx, y))
-        y = y + 1
+    dx, dy = DELTA[d]
+    nx, ny = x + dx, y + dy
+    grid[y][x] &= ~BIT[d]
+    grid[ny][nx] &= ~BIT[OPPOSITE[d]]
+
+
+def neighbours(
+        position: tuple[int, int], seen: set[tuple[int, int]], width: int,
+        height: int, visited: bool):
+    x, y = position
+    res = []
+    for dir, (dx, dy) in DELTA.items():
+        nx = x + dx
+        ny = y + dy
+        if (inbounds(nx, ny, width, height) and ((nx, ny) in seen) == visited):
+            res.append(dir)
+    return res
+    
 
 
 def hunt_and_kill(width: int, height: int, start: tuple[int, int], seed: int | None) -> list[list[int]]:
     rng = random.Random(seed)
     grid = [[15] * width for _ in range(height)]
-    queue = deque([start])
     seen = {start}
-    x, y = queue.popleft()
-    bool posibilidad = True
-    while queue:
-        if (posibilidad):
-            x, y = queue.popleft()
+    x, y = start
+    while True:
+        dirs = neighbours((x, y), seen, width, height, False)
+        if (dirs):
+            d = rng.choice(dirs)
+            carve((x, y), d, grid)
+            dx, dy = DELTA[d]
+            x, y = x + dx, y + dy
+            seen.add((x, y))
         else:
-            x, y = ft_hunt((x, y), width, height)
-        posibilidad = False
-        DELTA = rng.shuffle(DELTA)
-        for dir in DELTA:
-            dx, dy = DELTA[dir]
+            cell = ft_hunt(seen, width, height, grid, rng)
+            if cell is None:
+                return grid
+            x, y = cell
+            seen.add((x, y))
+
+
+from collections import deque
+import random
+#from core.MazeDirections import MazeDirection
+# from core.MazeCell import MazeCell
+
+BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
+OPPOSITE = {"N": "S", "E": "W", "S": "N", "W": "E"}
+LOGO = []
+DELTA = {"N" : (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
+
+
+def bfs(width: int, height: int, start: tuple[int, int], seed: int | None) -> list[list[int]]:
+    rng = random.Random(seed)
+    queue = deque([start])
+    visited = {start}
+    grid = [[15] * width for _ in range(height)]
+    while queue:
+        dirs = list(DELTA)
+        node = queue.pop()
+        x, y = node
+        rng.shuffle(dirs)
+        visited.add(node)
+        for d in dirs:
+            dx, dy = DELTA[d]
             nx, ny = x + dx, y + dy
-            if ((nx, ny) not in seen):
-                grid[y][x] &= ~BIT[dir]
-                grid[ny][nx] &= ~BIT[OPPOSITE[dir]]
-                seen.add((nx, ny))
-                queue.append((nx, ny))
-                posibilidad = True
-                break
-            else:
-                continue
+            if ((nx ,ny) in visited): continue
+            if not (0 <= nx < width and 0 <= ny < height): continue
+            if ((nx, ny) in LOGO):continue
+            grid[y][x] &= ~BIT[d]
+            grid[ny][nx] &= ~BIT[OPPOSITE[d]]
+            queue.append((nx, ny))
+            visited.add((nx, ny))
+    return grid
+
+
+
+
  
