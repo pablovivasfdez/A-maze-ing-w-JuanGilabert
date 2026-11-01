@@ -113,6 +113,7 @@ class MazeGenerator:
         ...#TODO: Se usara MazeSolver
 
 
+
 import random
 
 BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
@@ -122,14 +123,15 @@ DELTA = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
 
 def ft_hunt(
         seen: set[tuple[int, int]], width: int, height: int,
-        grid: list[list[int]], rng: random.Random) -> tuple[int, int] | None:
+        grid: list[list[int]], rng: random.Random, logo: list[tuple[int, int]]
+        )-> tuple[int, int] | None:
     for y in range(height):
         for x in range(width):
             if (x, y) in seen:
                 continue
-            dirs = neighbours((x, y), seen, width, height, True)
+            dirs = neighbours((x, y), seen, width, height, True, logo)
             if (dirs):
-                carve((x, y), rng.choice(dirs), grid)
+                carve((x, y), rng.choice(dirs), grid, logo)
                 return (x, y)
     return None
 
@@ -138,18 +140,20 @@ def inbounds(x: int, y: int, width: int, height: int) -> bool:
     return(0 <= x < width and 0 <= y < height)
 
 
-def carve(position: tuple[int, int], d: str, grid: list[list[int]]) -> None:
+def carve(position: tuple[int, int], d: str, grid: list[list[int]], logo: list[tuple[int, int]]) -> None:
     x, y = position
     dx, dy = DELTA[d]
     nx, ny = x + dx, y + dy
+    if((nx, ny) in logo): return
     grid[y][x] &= ~BIT[d]
     grid[ny][nx] &= ~BIT[OPPOSITE[d]]
 
 
 def neighbours(
         position: tuple[int, int], seen: set[tuple[int, int]], width: int,
-        height: int, visited: bool):
+        height: int, visited: bool, logo: list[tuple[int ,int]]):
     x, y = position
+    if ((x, y) in logo): return None
     res = []
     for dir, (dx, dy) in DELTA.items():
         nx = x + dx
@@ -158,6 +162,93 @@ def neighbours(
             res.append(dir)
     return res
     
+
+def search_square(x: int, y: int, grid: list[list[int]]) -> bool:
+    for l in range(x, x + 2):
+        for c in range(y, y + 2):
+            if (grid[c][l] & BIT["E"] or grid[c][l] & BIT["S"]): return True
+    return False
+
+
+def makes_3_square(x: int, y: int, nx: int, ny: int, width: int, height: int, grid: list[list[int]], d: str, logo: list[tuple[int, int]]) -> bool:
+    if ((nx, ny) in logo): return
+    min_x = max(0, min(x, nx) - 2)
+    min_y = max(0, min(y, ny) - 2)
+    max_x = min(width - 3, max(x ,nx))
+    max_y = min(height - 3, max(y, ny))
+    orig_val = grid[y][x]
+    orig_nval = grid[ny][nx]
+    grid[y][x] &= ~BIT[d]
+    grid[ny][nx] &= ~BIT[OPPOSITE[d]]
+    creates = False
+    for sy in range(min_y, max_y + 1):
+        for sx in range(min_x, max_x + 1):
+            if not search_square(sx, sy, grid):
+                creates = True
+                break
+        if creates: break
+    grid[y][x] = orig_val
+    grid[ny][nx] = orig_nval
+    return creates
+
+
+def hunt_and_kill(width: int, height: int, start: tuple[int, int], seed: int | None, perfect: bool, logo: list[tuple[int, int]]) -> list[list[int]]:
+    rng = random.Random(seed)
+    grid = [[15] * width for _ in range(height)]
+    seen = {start} | set(logo)
+    if start in logo:
+        raise ValueError("El punto de entrada (ENTRY) no puede estar dentro del logo.")
+    x, y = start
+    while True:
+        dirs = neighbours((x, y), seen, width, height, False, logo)
+        if (dirs):
+            d = rng.choice(dirs)
+            carve((x, y), d, grid, logo)
+            dx, dy = DELTA[d]
+            x, y = x + dx, y + dy
+            seen.add((x, y))
+        else:
+            cell = ft_hunt(seen, width, height, grid, rng, logo)
+            if cell is None:
+                break
+            x, y = cell
+            seen.add((x, y))
+
+#3 anidados, igual se puede hacer a la vez qye se genera o quitar el tercer for cogiendo solamente una direccion
+    if not (perfect):
+        for cy in range(height):
+            for cx in range(width):
+                if (rng.random() < 0.15):
+                    dirs = list(DELTA)
+                    rng.shuffle(dirs)
+                    for d in dirs:
+                        dx, dy = DELTA[d]
+                        nx, ny = cx + dx, cy + dy
+                        if ((nx, ny) in logo): continue
+                        if (inbounds(nx, ny, width, height) and (grid[cy][cx] & BIT[d]) and not makes_3_square(cx, cy, nx, ny, width, height, grid, d, logo)):
+                            grid[cy][cx] &= ~BIT[d]
+                            grid[ny][nx] &= ~BIT[OPPOSITE[d]]
+    return grid
+
+
+from collections import deque
+import random
+#from core.MazeDirections import MazeDirection
+# from core.MazeCell import MazeCell
+
+BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
+OPPOSITE = {"N": "S", "E": "W", "S": "N", "W": "E"}
+DELTA = {"N" : (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
+
+
+def all_visited(x: int, y: int, visited: set[tuple[int, int]]) -> bool:
+    dirs = list(DELTA)
+    for d in dirs:
+        dx, dy = DELTA[d]
+        nx, ny = x + dx, y +dy
+        if ((nx, ny) not in visited): return False
+    return True
+
 
 def search_square(x: int, y: int, grid: list[list[int]]) -> bool:
     for l in range(x, x + 2):
@@ -179,7 +270,7 @@ def makes_3_square(x: int, y: int, nx: int, ny: int, width: int, height: int, gr
     for sy in range(min_y, max_y + 1):
         for sx in range(min_x, max_x + 1):
             if not search_square(sx, sy, grid):
-                reates = True
+                creates = True
                 break
         if creates: break
     grid[y][x] = orig_val
@@ -187,86 +278,13 @@ def makes_3_square(x: int, y: int, nx: int, ny: int, width: int, height: int, gr
     return creates
 
 
-def hunt_and_kill(width: int, height: int, start: tuple[int, int], seed: int | None, perfect: bool) -> list[list[int]]:
-    rng = random.Random(seed)
-    grid = [[15] * width for _ in range(height)]
-    seen = {start}
-    x, y = start
-    while True:
-        dirs = neighbours((x, y), seen, width, height, False)
-        if (dirs):
-            d = rng.choice(dirs)
-            carve((x, y), d, grid)
-            dx, dy = DELTA[d]
-            x, y = x + dx, y + dy
-            seen.add((x, y))
-        else:
-            cell = ft_hunt(seen, width, height, grid, rng)
-            if cell is None:
-                break
-            x, y = cell
-            seen.add((x, y))
-    if not (perfect):
-        for cy in range(height):
-            for cx in range(width):
-                if (rng.random() < 0.15):
-                    dirs = list(DELTA)
-                    rng.shuffle(dirs)
-                    for d in dirs:
-                        dx, dy = DELTA[d]
-                        nx, ny = cx + dx, cy + dy
-                        if (inbounds(nx, ny, width, height) and (grid[cy][cx] & BIT[d]) and not makes_3_square(cx, cy, nx, ny, width, height, grid, d)):
-                            grid[cy][cx] &= ~BIT[d]
-                            grid[ny][nx] &= ~BIT[OPPOSITE[d]]
-    return grid
-
-
-from collections import deque
-import random
-#from core.MazeDirections import MazeDirection
-# from core.MazeCell import MazeCell
-
-BIT = {"N": 1, "E": 2, "S": 4, "W": 8}
-OPPOSITE = {"N": "S", "E": "W", "S": "N", "W": "E"}
-LOGO = []
-DELTA = {"N" : (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
-DECISION = [0, 1, 2]
-
-
-def all_visited(x: int, y: int, visited: set[tuple[int, int]]) -> bool:
-    dirs = list(DELTA)
-    for d in dirs:
-        dx, dy = DELTA[d]
-        nx, ny = x + dx, y +dy
-        if ((nx, ny) not in visited): return False
-    return True
-
-
-def search_square(x: int, y: int, grid: list[list[int]]) -> bool:
-    for l in range(x, x + 2):
-        for c in range(y, y + 2):
-            if (grid[c][l] & BIT["E"] or grid[c][l] & BIT["S"]): return True
-    return False
-
-
-def makes_3_square(x: int, y: int, nx: int, ny: int, width: int, height: int, grid: list[list[int]]) -> bool:
-    min_x = max(0, min(x, nx) - 2)
-    min_y = max(0, min(y, ny) - 2)
-    max_x = min(width - 3, max(x ,nx))
-    max_y = min(height - 3, max(y, ny))
-
-    for sy in range(min_y, max_y + 1):
-        for sx in range(min_x, max_x + 1):
-            if not search_square(sx, sy, grid): return True
-    return False
-
-
-
-def bfs(width: int, height: int, start: tuple[int, int], seed: int | None, perfect: bool) -> list[list[int]]:
+def bfs(width: int, height: int, start: tuple[int, int], seed: int | None, perfect: bool, logo: list[tuple[int, int]]) -> list[list[int]]:
     rng = random.Random(seed)
     queue = deque([start])
     visited = {start}
     grid = [[15] * width for _ in range(height)]
+    if start in logo:
+        raise ValueError("The start point (ENTRY) can not be on the logo.")
     while queue:
         dirs = list(DELTA)
         node = queue.pop()
@@ -276,19 +294,22 @@ def bfs(width: int, height: int, start: tuple[int, int], seed: int | None, perfe
         for d in dirs:
             dx, dy = DELTA[d]
             nx, ny = x + dx, y + dy
+            if ((nx, ny) in logo): continue
             if (all_visited(x, y, visited) and not perfect):
-                if (rng.random() < 0.45 and not makes_3_square(x, y, nx, ny, width, height, grid)):
+                if (rng.random() < 0.25 and not makes_3_square(x, y, nx, ny, width, height, grid, d)):
                     grid[y][x] &= ~BIT[d]
                     grid[ny][nx] &= ~BIT[OPPOSITE[d]]
                     continue
             if ((nx ,ny) in visited): continue
             if not (0 <= nx < width and 0 <= ny < height): continue
-            if ((nx, ny) in LOGO):continue
             grid[y][x] &= ~BIT[d]
             grid[ny][nx] &= ~BIT[OPPOSITE[d]]
             queue.append((nx, ny))
             visited.add((nx, ny))
     return grid
+
+
+
 
 
 
