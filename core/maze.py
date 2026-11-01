@@ -72,6 +72,27 @@ class Maze:
             [MazeCell() for _ in range(width)]
             for _ in range(height)
         ]
+        self.logo(self._maze_config.maze_height, self._maze_config.maze_width)
+
+
+    def get_logo(self, height: int, width: int) -> list[tuple[int, int]] | None:
+        if (height < 7 or width < 9): return None
+        middlex, middley = width // 2, height // 2
+        if (width % 2 != 0): middlex += 1
+        if (height % 2 != 0): middley += 1
+        values = []
+        logo_positions = [
+            (-1, 0), (-2, 0), (-3, 0), (-3, -1), (-3, -2), (-1, 1), (-1, 2),
+            (1, 0), (2, 0), (3, 0), (3, -1), (3, - 2), (2, -2), (1, -2),
+            (1, 1), (1, 2), (2, 2), (3, 2)
+        ]
+        for dx, dy in logo_positions:
+            x = middlex + dx
+            y = middley + dy
+            if (0 <= x < width and 0 <= y < height):
+                values.append((x, y))
+        return values
+
 
     def set_maze_width(self, width: int) -> None:
         """Set the maze width."""
